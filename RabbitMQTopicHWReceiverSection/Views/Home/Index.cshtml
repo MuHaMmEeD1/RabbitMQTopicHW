@@ -1,0 +1,158 @@
+﻿@using Microsoft.AspNetCore.Html
+@model HomeIndexModel
+
+@{
+    ViewData["Title"] = "Home Page";
+
+    
+}
+
+
+<div class="container">
+
+   
+   
+
+    <div id="divisionList" class="text-center">
+        @foreach (var division in Model.RabbitMQDivisions)
+        {
+            <div id="DD@{
+            @division.Name
+}">
+                <p onclick="selectDivision('@division.Name',event)" style="cursor: pointer;"> @division.Name</p>
+
+                @if (division.RabbitMQDivisions != null && division.RabbitMQDivisions.Count > 0)
+                {
+                    @RenderSubDivisions(division.RabbitMQDivisions, division.Name)
+                }
+
+
+            </div>
+        }
+    </div>
+
+    <div class="mt-3 text-center">
+        <h5>Selected Division Path:</h5>
+        <p id="selectedDivisionPath">None</p>
+    </div>
+
+
+
+    <div>
+        <h3>Received messages</h3>
+       
+
+            <ul>
+                @foreach (var message in RabbitMQTopicHWReceiverSection.StaticClasses.MessageStatic.Messages)
+                {
+                    <li>
+                        <p>
+                            @message
+                        </p>
+                    </li>
+                }
+            </ul>
+        
+    </div>
+</div>
+
+<script>
+    let selectedDivision = `@Model.RoutingKey`;
+  
+
+    if(selectedDivision != ""){
+
+        let ddElement = document.getElementById("DD" + selectedDivision);
+         let selectedDivisionPath = document.getElementById("selectedDivisionPath");
+
+        ddElement.style.border = "3px solid red";
+         selectedDivisionPath.innerHTML = selectedDivision;
+    }
+
+
+        function selectDivision(name, event) {
+            let selectedDivisionPath = document.getElementById("selectedDivisionPath");
+            let ddElement = document.getElementById("DD" + name);
+            let ddElementOld = document.getElementById("DD" + selectedDivision);
+
+
+            if (selectedDivisionPath.innerHTML == name) {
+
+                selectedDivisionPath.innerHTML = "";
+                ddElement.style.border = "";
+                selectedDivision = "";
+
+
+            }
+            else {
+
+                if (ddElementOld != null) { ddElementOld.style.border = ""; }
+
+
+                selectedDivisionPath.innerHTML = name;
+                ddElement.style.border = "3px solid red";
+                selectedDivision = name;
+                
+
+
+            }
+
+            sendRoutingKeyToServer();
+           
+
+    
+        }
+
+        function sendRoutingKeyToServer() {
+
+            console.log(selectedDivision)
+
+                fetch('/Home/StartListener', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ routingKey: selectedDivision })
+            })
+            .then(response => {
+
+
+                if (response.ok) {
+                    console.log('Ok sendRoutingKeyToServer');
+                } else {
+                    console.error('Errore sendRoutingKeyToServer');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        }
+
+
+
+</script>
+
+@functions {
+    public IHtmlContent RenderSubDivisions(List<RabbitMQDivision> subDivisions, string parentDivisionName)
+    {
+        var htmlContent = new HtmlContentBuilder();
+
+        htmlContent.AppendHtml($"<ul style=\"list-style: none; \">");
+
+        foreach (var subDivision in subDivisions)
+        {
+            htmlContent.AppendHtml($"<li id=\"DD{subDivision.Name}\"> <p  onclick=\"selectDivision('{subDivision.Name}',event)\" style=\"cursor: pointer;\" >{subDivision.Name}</p>");
+
+            if (subDivision.RabbitMQDivisions != null && subDivision.RabbitMQDivisions.Count > 0)
+            {
+                htmlContent.AppendHtml(RenderSubDivisions(subDivision.RabbitMQDivisions, parentDivisionName + "." + subDivision.Name));
+            }
+
+            htmlContent.AppendHtml("</li>");
+        }
+
+        htmlContent.AppendHtml("</ul>");
+
+        return htmlContent;
+    }
+}
